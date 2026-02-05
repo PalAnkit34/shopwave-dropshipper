@@ -1,0 +1,120 @@
+{% comment %}
+  WhatsApp Chat Widget - Theme App Extension
+  Floating WhatsApp button for instant customer communication
+  
+  This block fetches settings from the app API and renders the widget
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "WhatsApp Widget",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Enable Widget",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
+
+{% if block.settings.enabled %}
+{{ 'whatsapp-widget.css' | asset_url | stylesheet_tag }}
+<div id="social-boost-whatsapp" class="social-boost-whatsapp" style="display: none;" {{ block.shopify_attributes }}>
+  <a 
+    id="whatsapp-link"
+    href="#"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="social-boost-whatsapp__button"
+    aria-label="Chat with us on WhatsApp"
+  >
+    <img src="{{ 'whatsapp-icon.png' | asset_url }}" alt="WhatsApp" class="social-boost-whatsapp__icon" width="32" height="32" style="width: 100%; height: 100%; object-fit: contain;">
+    <span id="whatsapp-tooltip" class="social-boost-whatsapp__tooltip"></span>
+  </a>
+</div>
+
+<script>
+  (function() {
+    const CACHE_KEY = 'social_boost_settings_v2';
+    const CACHE_DURATION = 0; // Disable cache for debugging
+    
+    function getCachedSettings() {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            return data;
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+    
+    function cacheSettings(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+    }
+    
+    async function initWhatsAppWidget() {
+      let settings = getCachedSettings();
+      
+      if (!settings) {
+        try {
+          const response = await fetch('/apps/widget?shop={{ shop.permanent_domain }}');
+          settings = await response.json();
+          cacheSettings(settings);
+        } catch (e) {
+          console.error('Failed to fetch widget settings', e);
+          return;
+        }
+      }
+      
+      if (!settings.whatsappEnabled || !settings.whatsappNumber) {
+        return;
+      }
+      
+      const widget = document.getElementById('social-boost-whatsapp');
+      const link = document.getElementById('whatsapp-link');
+      const tooltip = document.getElementById('whatsapp-tooltip');
+      
+      // Set styles
+      const size = settings.whatsappSize === 'small' ? '40px' : 
+                   settings.whatsappSize === 'large' ? '80px' : '60px';
+      
+      widget.style.setProperty('--whatsapp-bg', settings.whatsappColor);
+      widget.style.setProperty('--whatsapp-size', size);
+      widget.classList.add('social-boost-whatsapp--' + settings.whatsappPosition);
+      
+      // Set link
+      const cleanNumber = settings.whatsappNumber.replace(/[^0-9]/g, '');
+      console.log('WhatsApp Config:', { original: settings.whatsappNumber, clean: cleanNumber });
+      link.href = 'https://wa.me/' + cleanNumber;
+      
+      // Set tooltip
+      if (settings.whatsappShowTooltip && settings.whatsappTooltip) {
+        tooltip.textContent = settings.whatsappTooltip;
+        tooltip.style.display = 'block';
+      } else {
+        tooltip.style.display = 'none';
+      }
+      
+      // Show widget
+      widget.style.display = 'block';
+    }
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initWhatsAppWidget);
+    } else {
+      initWhatsAppWidget();
+    }
+  })();
+</script>
+{% endif %}

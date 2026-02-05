@@ -1,0 +1,14 @@
+{
+    "whatsapp_widget": {
+        "name": "WhatsApp Widget",
+        "settings": {
+            "enabled": "Enable Widget"
+        }
+    },
+    "sales_notifications": {
+        "name": "Sales Notifications",
+        "settings": {
+            "enabled": "Enable Notifications"
+        }
+    }
+}

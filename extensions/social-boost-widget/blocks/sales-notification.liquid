@@ -1,0 +1,237 @@
+{% comment %}
+  Sales Notification Widget - Theme App Extension
+  Social proof notifications showing trending products
+  
+  This block fetches settings and products from the app API
+{% endcomment %}
+
+{% schema %}
+{
+  "name": "Sales Notifications",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Enable Notifications",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
+
+{% if block.settings.enabled %}
+{{ 'sales-notification.css' | asset_url | stylesheet_tag }}
+<div 
+  id="social-boost-notification" 
+  class="social-boost-notification" 
+  style="display: none;"
+  role="status"
+  aria-live="polite"
+  {{ block.shopify_attributes }}
+>
+  <div class="social-boost-notification__content">
+    <img 
+      id="notification-image"
+      class="social-boost-notification__image" 
+      src="" 
+      alt="" 
+      loading="lazy"
+      width="60"
+      height="60"
+    >
+    <div class="social-boost-notification__text">
+      <span id="notification-cta" class="social-boost-notification__cta"></span>
+      <span id="notification-title" class="social-boost-notification__title"></span>
+      <span id="notification-time" class="social-boost-notification__time"></span>
+    </div>
+    <button 
+      id="notification-close"
+      class="social-boost-notification__close" 
+      aria-label="Dismiss notification"
+      type="button"
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const CACHE_KEY = 'social_boost_settings';
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const DISMISS_KEY = 'social_boost_notification_dismissed';
+    
+    function getCachedSettings() {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            return data;
+          }
+        }
+      } catch (e) {}
+      return null;
+    }
+    
+    function cacheSettings(data) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+      } catch (e) {}
+    }
+    
+    async function initNotificationWidget() {
+      console.log('[SalesNotification] Initializing widget...');
+      
+      // Check if dismissed this session
+      if (sessionStorage.getItem(DISMISS_KEY) === 'true') {
+        console.log('[SalesNotification] Widget dismissed this session');
+        return;
+      }
+      
+      let settings = getCachedSettings();
+      console.log('[SalesNotification] Cached settings:', settings);
+      
+      if (!settings) {
+        try {
+          console.log('[SalesNotification] Fetching settings from /apps/widget...');
+          const response = await fetch('/apps/widget?shop={{ shop.permanent_domain }}');
+          console.log('[SalesNotification] Response status:', response.status);
+          settings = await response.json();
+          console.log('[SalesNotification] Fetched settings:', settings);
+          cacheSettings(settings);
+        } catch (e) {
+          console.error('[SalesNotification] Failed to fetch widget settings', e);
+          return;
+        }
+      }
+      
+      if (!settings.notificationEnabled) {
+        console.log('[SalesNotification] Notifications disabled in settings');
+        return;
+      }
+      
+      // Parse products
+      let products = [];
+      if (settings.notificationProducts) {
+        try {
+          products = JSON.parse(settings.notificationProducts);
+          console.log('[SalesNotification] Parsed products:', products.length);
+        } catch (e) {
+          console.error('[SalesNotification] Failed to parse products', e);
+          return;
+        }
+      }
+      
+      if (products.length === 0) {
+        console.log('[SalesNotification] No products selected');
+        return;
+      }
+      
+      const widget = document.getElementById('social-boost-notification');
+      const image = document.getElementById('notification-image');
+      const cta = document.getElementById('notification-cta');
+      const title = document.getElementById('notification-title');
+      const time = document.getElementById('notification-time');
+      const closeBtn = document.getElementById('notification-close');
+      
+      console.log('[SalesNotification] Widget element:', widget);
+      
+      // Set styles
+      widget.style.setProperty('--notification-bg', settings.notificationBgColor);
+      widget.style.setProperty('--notification-text', settings.notificationTextColor);
+      widget.style.setProperty('--notification-accent', settings.notificationAccentColor || settings.notificationThemeColor);
+      widget.classList.add('social-boost-notification--' + settings.notificationPosition);
+      widget.classList.add('social-boost-notification--' + (settings.notificationSize || 'medium'));
+      
+      let currentIndex = 0;
+      let isPaused = false;
+      let intervalId = null;
+      
+      function showNotification() {
+        if (sessionStorage.getItem(DISMISS_KEY) === 'true') return;
+        
+        const product = products[currentIndex];
+        
+        if (product.featuredImage && product.featuredImage.url) {
+          image.src = product.featuredImage.url;
+          image.alt = product.title;
+          image.style.display = 'block';
+        } else {
+          image.style.display = 'none';
+        }
+        
+        cta.textContent = settings.notificationCtaText;
+        title.textContent = product.title;
+        time.textContent = settings.notificationTimeText;
+        
+        widget.classList.add('social-boost-notification--visible');
+        
+        setTimeout(() => {
+          if (!isPaused) {
+            widget.classList.remove('social-boost-notification--visible');
+          }
+        }, settings.notificationDuration * 1000);
+      }
+      
+      function nextProduct() {
+        currentIndex = (currentIndex + 1) % products.length;
+      }
+      
+      // Close button
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        widget.classList.remove('social-boost-notification--visible');
+        if (intervalId) clearInterval(intervalId);
+        sessionStorage.setItem(DISMISS_KEY, 'true');
+      });
+      
+      // Pause on hover
+      widget.addEventListener('mouseenter', () => { isPaused = true; });
+      widget.addEventListener('mouseleave', () => { 
+        isPaused = false;
+        widget.classList.remove('social-boost-notification--visible');
+      });
+      
+      // Click to go to product
+      widget.querySelector('.social-boost-notification__content').addEventListener('click', (e) => {
+        if (e.target.closest('.social-boost-notification__close')) return;
+        const product = products[currentIndex];
+        if (product.handle) {
+          window.location.href = '/products/' + product.handle;
+        } else if (product.url) {
+          window.location.href = product.url;
+        }
+      });
+      
+      // Start showing notifications
+      setTimeout(() => {
+        showNotification();
+        
+        const totalInterval = (settings.notificationInterval + settings.notificationDuration) * 1000;
+        intervalId = setInterval(() => {
+          if (!isPaused && sessionStorage.getItem(DISMISS_KEY) !== 'true') {
+            nextProduct();
+            showNotification();
+          }
+        }, totalInterval);
+      }, settings.notificationDelay * 1000);
+      
+      // Show that widget is ready (but hidden until first notification)
+      widget.style.display = 'block';
+    }
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initNotificationWidget);
+    } else {
+      initNotificationWidget();
+    }
+  })();
+</script>
+{% endif %}

@@ -1,0 +1,19 @@
+api_version = "2024-10"
+
+[[extensions]]
+uid = "b9f060ba-d216-b33b-a720-f421d0432b6130e5ce64"
+type = "theme"
+name = "Social Boost Widget"
+handle = "social-boost-widget"
+
+[[extensions.targeting]]
+module = "./blocks/whatsapp-widget.liquid"
+target = "body"
+
+[[extensions.targeting]]
+module = "./blocks/sales-notification.liquid"
+target = "body"
+
+[[extensions.targeting]]
+module = "./blocks/delivery-estimator.liquid"
+target = "section"

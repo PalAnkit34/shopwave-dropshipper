@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// Widget Settings for Social Boost features
+model WidgetSettings {
+  id                      String   @id @default(uuid())
+  shop                    String   @unique
+  
+  // WhatsApp Widget Settings
+  whatsappEnabled         Boolean  @default(false)
+  whatsappNumber          String?
+  whatsappPosition        String   @default("bottom-right")
+  whatsappColor           String   @default("#25D366")
+  whatsappSize            String   @default("medium")
+  whatsappTooltip         String   @default("Chat with us!")
+  whatsappShowTooltip     Boolean  @default(true)
+  
+  // Notification Widget Settings
+  notificationEnabled     Boolean  @default(false)
+  notificationPosition    String   @default("bottom-left")
+  notificationBgColor     String   @default("#ffffff")
+  notificationTextColor   String   @default("#333333")
+  notificationAccentColor String   @default("#25D366")
+  notificationCtaText     String   @default("Trending Now")
+  notificationTimeText    String   @default("Just now")
+  notificationInterval    Int      @default(8)
+  notificationDuration    Int      @default(5)
+  notificationDelay       Int      @default(3)
+  notificationProducts    String?  // JSON array of product GIDs
+  notificationDisplayLogic String  @default("random")  // random or sequential
+  notificationThemeColor  String   @default("#ef4444")  // Theme/accent color
+  notificationSize        String   @default("medium")   // small, medium, large
+  
+  // EDD (Estimated Delivery Date) Widget Settings
+  eddEnabled              Boolean  @default(false)
+  eddMinHandlingDays      Int      @default(1)
+  eddMaxHandlingDays      Int      @default(3)
+  eddMinShippingDays      Int      @default(7)
+  eddMaxShippingDays      Int      @default(12)
+  eddCutoffHour           Int      @default(17)  // 5 PM in 24h format
+  eddShowTimeline         Boolean  @default(true)
+  eddPosition             String   @default("below-atc")
+  eddBgColor              String   @default("#f0fdf4")
+  eddTextColor            String   @default("#166534")
+  eddAccentColor          String   @default("#22c55e")
+  eddMessageTemplate      String   @default("Order within {time_left} to get it by {delivery_date}")
+  eddThemeColor           String   @default("#000000")  // Theme color for icons/text
+  eddCustomText           String   @default("Order within")  // Custom countdown text
+  eddCountry              String   @default("IN")  // Country code for shipping destination (e.g., IN, US, GB)
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
